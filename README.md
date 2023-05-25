@@ -54,19 +54,19 @@ python3 ./main.py
 
 3. The GUI will open, and you can start using the application. 
 Here are some basic instructions:
-   - You will see an information window, read it and click the "OK" buttom to continue.
-   - ![info_window](images/info.png)
+   
    - You will see the main program window where you can enter the necessary parameters.
-   - ![main_window](images/main_window.png)
+   - ![main_window](images/mainw.png)
    - You can set the starting point, the edge size, the allowable calculation inaccuracy,
-   the initial edge size of the simplex. If you have not read the description of the algorithm or do not want to go
-   into details, do not change the parameters. 
+   the initial edge size of the simplex. By clicking the info button in the upper left corner you can see
+   the information about the parameters to be set. 
+   - ![inf](images/inf.png)
    
    - You can choose from several basic functions or enter your own function of one, two or three variables. 
    Please use variables x, x and y, x and y and z respectively. You can write using standard operations +, -, /, *, ^,
    you can use brackets (), constants e and pi, standard functions are also available: a/cos(x), a/sin(x), a/tan(x), ln(x), log(x).
    An example of a correctly entered function:
-   - ![entered_functions](images/functions.png)
+   - ![entered_functions](images/eneterd.png)
    - You can either select a function from the list or enter one custom. Click the "Submit" button to start the
    Nelder-Mead optimization process. If everything was successful, you will see the result.
    

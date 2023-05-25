@@ -5,6 +5,8 @@ https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
 
 import math
 import threading
+import point as pt
+import simplex as smpx
 Debugging = False
 # timeout for infinite loops detection
 time_out = 5
@@ -121,177 +123,6 @@ def harder_3_dim(x):
     z3 = x[2] ** 2
     r = (z1 + z2 - 4) ** 2 + (z2 + z3 - 4) ** 2 + (z1 + z3 - 4) ** 2
     return r
-
-
-# ======================================================================================================================
-class Point:
-    """
-    Class represents a point in n-dimensional space
-    """
-    def __init__(self, vector, n):
-        """
-        Constructor
-
-        :param vector: vector with point coordinates
-        :param n: dimension
-        """
-
-        self.n = n
-        self.vector = []
-        for i in range(n):
-            self.vector.append(vector[i])
-
-    def __str__(self):
-        """
-        Converts to string
-
-        :return: string with point coordinates
-        """
-        s = ""
-        for i in range(self.n):
-            s = s + str(self.vector[i]) + " "
-        return s
-
-    def __add__(self, y):
-        """
-        Sums two points
-
-        :param y: other point
-        :return: result point
-        """
-
-        r = []
-        for i in range(self.n):
-            r.append(self.vector[i] + y.vector[i])
-        return Point(r, self.n)
-
-    def __sub__(self, y):
-        """
-        Subtract two points
-
-        :param y: other point
-        :return: result point
-        """
-
-        r = []
-        for i in range(self.n):
-            r.append(self.vector[i] - y.vector[i])
-        return Point(r, self.n)
-
-    def __mul__(self, m):
-        """
-        Multiplies point by a scalar
-
-        :param m: scalar
-        :return: result point
-        """
-
-        r = []
-        for i in range(self.n):
-            r.append(self.vector[i] * m)
-        return Point(r, self.n)
-
-    def __truediv__(self, m):
-        """
-        Divides point by a scalar
-
-        :param m: scalar
-        :return: result point
-        """
-
-        r = []
-        for i in range(self.n):
-            r.append(self.vector[i] / m)
-        return Point(r, self.n)
-
-    def get_x(self):
-        """
-        Gets a vector with point coordinates
-        :return: vector
-        """
-
-        return self.vector
-
-
-# ======================================================================================================================
-def zero_point(n):
-    """
-    Creates a n size zero vector - zero point in n-dimensional space
-    :param n: dimension
-    :return: zero point
-    """
-
-    x = []
-    for _ in range(n):
-        x.append(0.0)
-    return Point(x, n)
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-def start_simplex(edge, StartPoint, N):
-    """
-    Creates a simplex in n-dimensional space
-
-    :param edge: initial simplex edge length
-    :param StartPoint: initial point
-    :param N: dimension - 1
-    :return: vector with simplex vertices coordinates
-    """
-
-    tnsq = edge / N / math.sqrt(2.0)  # these are formulas from Himmelblau
-    n1 = math.sqrt(N + 1)
-    d1 = tnsq * (n1 + N - 1)
-    d2 = tnsq * (n1 - 1)
-    r = [Point(StartPoint, N)]  # each r[i] - Point of the polygon
-    for i in range(1, N + 1):
-        s = []
-        for j in range(N):
-            s.append(d2 + StartPoint[j])
-        s[i - 1] = d1 + StartPoint[i - 1]
-        r.append(Point(s + StartPoint, N))
-    return r
-
-
-# ======================================================================================================================
-class Simplex:
-    """
-    Class represents simplex in n-dimensional space
-    """
-    def __init__(self, StartPoint, N, edge, F):
-        """
-        Constructor
-
-        :param StartPoint: vector with initial point coordinates
-        :param N: dimension - 1
-        :param edge: initial simplex edge length
-        :param F: function to be minimized
-        """
-
-        self.N = N
-        self.F = F
-        self.pnt = start_simplex(edge, StartPoint, N)
-        self.ff = []  # function values at the vertices of the polyhedron
-        for i in range(N + 1):
-            self.ff.append(self.F(self.pnt[i].vector))
-
-    def get_vertex(self, index):
-        """
-        Gets the vertex of the simplex at the given index.
-
-        :param index: the index of the vertex of the simplex to get
-        :return: the simplex vertex object at the specified index
-        """
-
-        return self.pnt[index]
-
-    def get_dimension(self):
-        """
-        Gets dimension
-        :return: dimension
-        """
-
-        return self.N
-# ======================================================================================================================
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -445,7 +276,7 @@ def one_step(F, N, smp):
     fl = F(pl.vector)
 
     # centroid of all vertices except imax
-    pc = sum((smp.pnt[i] for i in range(N + 1) if i != min_max_list[1]), zero_point(N)) / N
+    pc = sum((smp.pnt[i] for i in range(N + 1) if i != min_max_list[1]), pt.zero_point(N)) / N
 
     pr = pc*(1+alpha) - ph*alpha
     fr = F(pr.vector)
@@ -468,7 +299,7 @@ def sigma_check(smp):
     :return: point - center of gravity, standard deviation
     """
     # the center of gravity
-    p = zero_point(smp.N)
+    p = pt.zero_point(smp.N)
     for i in range(smp.N + 1):
         p = p + smp.pnt[i]
     p = p / (smp.N + 1)
@@ -499,7 +330,7 @@ def nelder_mead(fun, n, StartPoint, edge, epsilon):
     :return: vector with extremum point coordinates
     """
 
-    smp = Simplex(StartPoint, n, edge, fun)
+    smp = smpx.Simplex(StartPoint, n, edge, fun)
     print_smp('starting ', smp)
 
     result = {'value': None, 'finished': False}

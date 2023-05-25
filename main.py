@@ -4,15 +4,15 @@ Module for working with the Nelder-Mead algorithm
 from tkinter.messagebox import showerror
 import tkinter as tk
 from tkinter import ttk
-import re
+import ast
 import numpy as np
 import matplotlib.pyplot as plt
 import sympy as sp
 import nelder_mead as nm
 
-pattern_4d = r'^[xyzasincosatanlog\d\+\-\*/\(\)\^epi]*$'
-pattern_3d = r'^[xyasincosatanlog\d\+\-\*/\(\)\^epi]*$'
-pattern_2d = r'^[xasincosatanlog\d\+\-\*/\(\)\^epi]*$'
+pattern_4d = r'^[ .0123456789xyzasincosatanlog\d\+\-\*/\(\)\^epi]*$'
+pattern_3d = r'^[ .0123456789xyasincosatanlog\d\+\-\*/\(\)\^epi]*$'
+pattern_2d = r'^[ .0123456789xasincosatanlog\d\+\-\*/\(\)\^epi]*$'
 
 functions = [nm.parabola_0, nm.parabola_1, nm.parabola_2, nm.ff_dim_2, nm.parabaloid, nm.rosenbrock,
              nm.easy_3_dim, nm.harder_3_dim]
@@ -33,24 +33,67 @@ def is_valid_function(function_str, dimension):
     The function checks if the entered function is valid
 
     :param function_str: a function to check
-    :param dimension: function dimension, either 2 or 3
+    :param dimension: function dimension - 1, either 1 or 2 or 3
     :return: True if is valid False if not
     """
-    if dimension == 2:
-        pattern = pattern_2d
-    elif dimension == 3:
-        pattern = pattern_3d
-    else:
-        pattern = pattern_4d
-    function_str = function_str.replace(' ', '')
-    if re.fullmatch(pattern, function_str):
-        try:
-
-            sp.sympify(function_str)
-            return True
-        except sp.SympifyError:
+    try:
+        if dimension == 1:
+            pattern = pattern_2d
+        elif dimension == 2:
+            pattern = pattern_3d
+        else:
+            pattern = pattern_4d
+        # Check for invalid characters
+        invalid_chars = set(function_str) - set(pattern)
+        if invalid_chars:
+            showerror("Error", f"Invalid characters in function: {', '.join(invalid_chars)}")
             return False
+
+        # Check syntax using ast module
+        ast.parse(function_str)
+
+        # Sympify the function_str
+        func_sympy = sp.sympify(function_str)
+
+        # Get the symbols (variables) in the sympy expression
+        symbols = func_sympy.free_symbols
+
+        # Define allowed variables based on dimension
+        allowed_variables = [sp.symbols('x'), sp.symbols('y'), sp.symbols('z')][:dimension]
+
+        # Check that every symbol in the function is an allowed variable
+        if all(symbol in allowed_variables for symbol in symbols):
+            return True
+
+        showerror("Error", f"{dimension+1}D function must contain these variables only: {', '.join(map(str, allowed_variables))}")
+    except SyntaxError as e:
+        showerror("Error", f"Invalid syntax in function: {e.msg}")
+    except sp.SympifyError:
+        showerror("Error", "Invalid function")
+
     return False
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+def find_extremum(selected_function, num_variables, initial_point, edge_length, tol):
+    """
+    Finds the extremum of a function using the Nelder Mead algorithm.
+
+    :param selected_function: a function to find the extremum of
+    :param num_variables: int, the number of variables in the function
+    :param initial_point: list, the initial point for the algorithm
+    :param edge_length: float, the initial simplex edge length for the algorithm
+    :param tol: float, the tolerance for the algorithm
+    :return: coordinates of the extremum or -1 if the extremum was not found
+    """
+
+    point = nm.nelder_mead(selected_function, num_variables, initial_point, edge_length, tol)
+    if point == -1:
+        showerror("Error", "It seems that the function does not have an extremum. "
+                           "If you are not agree try to change initial parameters")
+        return -1
+
+    return point
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -66,10 +109,8 @@ def plot_2d(selected_function, initial_point, edge_length, tol):
     :return: None
     """
 
-    point = nm.nelder_mead(selected_function, 1, initial_point, edge_length, tol)
+    point = find_extremum(selected_function, 1, initial_point, edge_length, tol)
     if point == -1:
-        showerror("Error", "It seems that the function does not have an extremum. "
-                           "If you are not agree try to change initial parameters")
         return
 
     extremum_x = point[0].get_x()[0]
@@ -103,10 +144,8 @@ def plot_3d(selected_function, initial_point, edge_length, tol):
     :param tol: requiring tolerance
     :return: None
     """
-    point = nm.nelder_mead(selected_function, 2, initial_point, edge_length, tol)
+    point = find_extremum(selected_function, 2, initial_point, edge_length, tol)
     if point == -1:
-        showerror("Error", "It seems that the function does not have an extremum. "
-                           "If you are not agree try to change initial parameters")
         return
 
     extremum_x = point[0].get_x()[0]
@@ -147,10 +186,8 @@ def show_4d(selected_function, initial_point, edge_length, tol):
     :param tol: requiring tolerance
     :return: None
     """
-    point = nm.nelder_mead(selected_function, 3, initial_point, edge_length, tol)
+    point = find_extremum(selected_function, 3, initial_point, edge_length, tol)
     if point == -1:
-        showerror("Error", "It seems that the function does not have an extremum. "
-                           "If you are not agree try to change initial parameters")
         return
 
     extremum_x = point[0].get_x()[0]
@@ -223,6 +260,9 @@ def show_parameters_window():
     submit_button.grid(row=11, column=1, columnspan=2)
     combo_function.current(0)
 
+    info_button = tk.Button(root, text="(i)", command=show_info_window)
+    info_button.grid(row=0, column=0)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 def show_info_window():
@@ -266,10 +306,12 @@ def show_info_window():
 
     label_edge_length_info = tk.Label(info_window, text="1) Edge length must be in the range [1, 10].", justify="left")
     label_tol_info = tk.Label(info_window, text="2) Tolerance must be in the range [0.000001, 0.1].", justify="left")
-    label_info1 = tk.Label(info_window, text='3) If you are not sure, do not change the parameters', justify="left")
-    label_info2 = tk.Label(info_window, text='4) If the parameters are correct and the result is strange - '
+    label_info0 = tk.Label(info_window, text="3) For variables use \"x\", \"y\", \"z\".", justify="left")
+
+    label_info1 = tk.Label(info_window, text='4) If you are not sure, do not change the parameters', justify="left")
+    label_info2 = tk.Label(info_window, text='5) If the parameters are correct and the result is strange - '
                                              'try changing\n the initial point', justify="left")
-    label_info3 = tk.Label(info_window, text='5) Starting points can be any but keep in mind that you can hit '
+    label_info3 = tk.Label(info_window, text='6) Starting points can be any but keep in mind that you can hit '
                                              'a local and\n not a global extremum or or one of several extremes'
                                              ' (algorithm limitation)', justify="left")
     label_info4 = tk.Label(info_window, text='Press "OK" to continue')  # , justify="left")
@@ -279,15 +321,17 @@ def show_info_window():
 
     label_edge_length_info.grid(row=0, column=0, padx=10, pady=10, sticky='w')
     label_tol_info.grid(row=1, column=0, padx=10, pady=10, sticky='w')
-    label_info1.grid(row=2, column=0, padx=10, pady=10, sticky='w')
-    label_info2.grid(row=3, column=0, padx=10, pady=10, sticky='w')
-    label_info3.grid(row=4, column=0, padx=10, pady=10, sticky='w')
-    label_info4.grid(row=5, column=0, padx=10, pady=10)
-    ok_button.grid(row=6, column=0, padx=10, pady=10)
+    label_info0.grid(row=2, column=0, padx=10, pady=10, sticky='w')
+    label_info1.grid(row=3, column=0, padx=10, pady=10, sticky='w')
+    label_info2.grid(row=4, column=0, padx=10, pady=10, sticky='w')
+    label_info3.grid(row=5, column=0, padx=10, pady=10, sticky='w')
+    label_info4.grid(row=6, column=0, padx=10, pady=10)
+    ok_button.grid(row=7, column=0, padx=10, pady=10)
 
     # Changing font for info window interface elements
     label_edge_length_info.config(font=("Arial", BASE_FONT_SIZE))
     label_tol_info.config(font=("Arial", BASE_FONT_SIZE))
+    label_info0.config(font=("Arial", BASE_FONT_SIZE))
     label_info1.config(font=("Arial", BASE_FONT_SIZE))
     label_info2.config(font=("Arial", BASE_FONT_SIZE))
     label_info3.config(font=("Arial", BASE_FONT_SIZE))
@@ -302,85 +346,58 @@ def show_info_window():
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-def handle_2d_function(custom_function_str, initial_point, edge_length, tol):
+def handle_custom_function(custom_function_str, num_variables, initial_point, edge_length, tol):
     """
-    Handles a 2D custom function by validating, plotting, and displaying errors if necessary.
+    Handles a custom function of any number of variables (1, 2, 3).
 
-    :param custom_function_str: string, a 2D custom function represented as a string
+    This function validates the input string, converts it into a sympy expression, and uses it
+    to create a lambda function. It also checks the number of free variables in the sympy expression.
+    If the number of free variables is equal to the expected number of variables, the function is plotted;
+    otherwise, an error message is shown.
+
+    :param custom_function_str: string, a custom function represented as a string
+    :param num_variables: int, the number of variables in the custom function
     :param initial_point: list, the initial point for the optimization algorithm
     :param edge_length: float, the edge length for the optimization algorithm
     :param tol: float, the tolerance for the optimization algorithm
     :return: None
     """
+    if not is_valid_function(custom_function_str, num_variables):
+        return
 
-    if is_valid_function(custom_function_str, 2):
-        x = sp.symbols("x")
-        custom_function_str = replace_symbols_with_constants(custom_function_str)
-        custom_function_expr = sp.sympify(custom_function_str)
-        selected_function = sp.lambdify([(x,)], custom_function_expr, "numpy")
+        # Create symbols for each variable
+    variables = sp.symbols(" ".join(['x', 'y', 'z'][:num_variables]))
 
-        function_variables = custom_function_expr.free_symbols
-
-        if len(function_variables) == 1:
-            plot_2d(selected_function, initial_point, edge_length, tol)
-        else:
-            showerror("Error", "2D custom function must have only 1 variable!")
+    # Handle the case of a single variable
+    if num_variables == 1:
+        variables = (tuple([variables]),)
     else:
-        showerror("Error", "Please, enter a valid 2D custom function!")
+        variables = tuple([tuple(variables)])
 
+    # Replace any symbols in the string with their constant values
+    custom_function_str = replace_symbols_with_constants(custom_function_str)
 
-# ----------------------------------------------------------------------------------------------------------------------
-def handle_3d_function(custom_function_str, initial_point, edge_length, tol):
-    """
-    Handles a 3D custom function by validating, plotting, and displaying errors if necessary.
+    # Convert the string into a sympy expression
+    custom_function_expr = sp.sympify(custom_function_str)
 
-    :param custom_function_str: string, a 3D custom function represented as a string
-    :param initial_point: list, the initial point for the optimization algorithm
-    :param edge_length: float, the edge length for the optimization algorithm
-    :param tol: float, the tolerance for the optimization algorithm
-    :return: None
-    """
-    if is_valid_function(custom_function_str, 3):
-        x, y = sp.symbols("x y")
-        custom_function_str = replace_symbols_with_constants(custom_function_str)
-        custom_function_expr = sp.sympify(custom_function_str)
-        selected_function = sp.lambdify([(x, y)], custom_function_expr, "numpy")
+    # Create a lambda function from the sympy expression
+    selected_function = sp.lambdify(variables, custom_function_expr, "numpy")
 
-        function_variables = custom_function_expr.free_symbols
+    # Get the free variables in the sympy expression
+    function_variables = custom_function_expr.free_symbols
 
-        if len(function_variables) == 2:
-            plot_3d(selected_function, initial_point, edge_length, tol)
-        else:
-            showerror("Error", "3D custom function must have 2 variables!")
-    else:
-        showerror("Error", "Please, enter a valid 3D custom function!")
+    # Check if the number of free variables is equal to the number of expected variables
+    if len(function_variables) != num_variables:
+        showerror("Error", f"{num_variables + 1}D custom function must have {num_variables} variables!")
+        return
 
-
-# ----------------------------------------------------------------------------------------------------------------------
-def handle_4d_function(custom_function_str, initial_point, edge_length, tol):
-    """
-    Handles a 4D custom function by validating, and displaying errors if necessary.
-
-    :param custom_function_str: string, a 4D custom function represented as a string
-    :param initial_point: list, the initial point for the optimization algorithm
-    :param edge_length: float, the edge length for the optimization algorithm
-    :param tol: float, the tolerance for the optimization algorithm
-    :return: None
-    """
-    if is_valid_function(custom_function_str, 4):
-        x, y, z = sp.symbols("x y z")
-        custom_function_str = replace_symbols_with_constants(custom_function_str)
-        custom_function_expr = sp.sympify(custom_function_str)
-        selected_function = sp.lambdify([(x, y, z)], custom_function_expr, "numpy")
-
-        function_variables = custom_function_expr.free_symbols
-
-        if len(function_variables) == 3:
-            show_4d(selected_function, initial_point, edge_length, tol)
-        else:
-            showerror("Error", "4D custom function must have 3 variables!")
-    else:
-        showerror("Error", "Please, enter a valid 4D custom function!")
+    # If yes, plot the function
+    if num_variables == 1:
+        plot_2d(selected_function, initial_point, edge_length, tol)
+    elif num_variables == 2:
+        plot_3d(selected_function, initial_point, edge_length, tol)
+    elif num_variables == 3:
+        show_4d(selected_function, initial_point, edge_length, tol)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -418,11 +435,12 @@ def submit():
             return
 
         if custom_function_str_2d:
-            handle_2d_function(custom_function_str_2d, initial_point, edge_length, tol)
+            handle_custom_function(custom_function_str_2d, 1, initial_point, edge_length, tol)
         elif custom_function_str_3d:
-            handle_3d_function(custom_function_str_3d, initial_point, edge_length, tol)
+            handle_custom_function(custom_function_str_3d, 2, initial_point, edge_length, tol)
         elif custom_function_str_4d:
-            handle_4d_function(custom_function_str_4d, initial_point, edge_length, tol)
+            handle_custom_function(custom_function_str_4d, 3, initial_point, edge_length, tol)
+
         else:
             function_index = int(functions_name.index(combo_function.get()))
             selected_function = get_function_by_index(function_index)
@@ -444,8 +462,7 @@ root = tk.Tk()
 root.minsize(520, 320)  # Minimum size of the window
 root.maxsize(800, 600)  # Maximum size of the window
 root.title("Nelder-Mead Parameters")
-root.withdraw()  # hide the main window
-# root.geometry("520x320")
+
 # Configure the grid
 for i in range(10):
     root.grid_columnconfigure(i, weight=1)
@@ -511,9 +528,15 @@ label_edge_length.config(font=("Arial", BASE_FONT_SIZE))
 entry_edge_length.config(font=("Arial", BASE_FONT_SIZE))
 label_tol.config(font=("Arial", BASE_FONT_SIZE))
 entry_tol.config(font=("Arial", BASE_FONT_SIZE))
+label_custom_function3d.config(font=("Arial", BASE_FONT_SIZE))
+entry_custom_function3d.config(font=("Arial", BASE_FONT_SIZE))
+label_custom_function2d.config(font=("Arial", BASE_FONT_SIZE))
+entry_custom_function2d.config(font=("Arial", BASE_FONT_SIZE))
+label_custom_function4d.config(font=("Arial", BASE_FONT_SIZE))
+entry_custom_function4d.config(font=("Arial", BASE_FONT_SIZE))
 submit_button.config(font=("Arial", BASE_FONT_SIZE))
 
-show_info_window()
 # Run the main event loop
+show_parameters_window()  # Show the main window
 root.mainloop()
 # ----------------------------------------------------------------------------------------------------------------------
