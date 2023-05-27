@@ -52,6 +52,9 @@ def is_valid_function(function_str, dimension):
         # Check syntax using ast module
         ast.parse(function_str)
 
+        # Replace any symbols in the string with their constant values
+        function_str = replace_symbols_with_constants(function_str)
+
         # Sympify the function_str
         func_sympy = sp.sympify(function_str)
 
@@ -540,3 +543,4 @@ submit_button.config(font=("Arial", BASE_FONT_SIZE))
 show_parameters_window()  # Show the main window
 root.mainloop()
 # ----------------------------------------------------------------------------------------------------------------------
+
